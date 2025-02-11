@@ -299,14 +299,19 @@ def stream_openai_response(user_message: str):
 
         console.print()
 
+        # Start of JSON parsing and error handling
         try:
             parsed_response = json.loads(full_content)
             
-            # [NEW] Ensure assistant_reply is present
+            # [NEW] Error handling to ensure expected fields are present
             if "assistant_reply" not in parsed_response:
-                parsed_response["assistant_reply"] = ""
+                parsed_response["assistant_reply"] = "No reply provided by assistant"
+            if "files_to_create" not in parsed_response:
+                parsed_response["files_to_create"] = []
+            if "files_to_edit" not in parsed_response:
+                parsed_response["files_to_edit"] = []
 
-            # If assistant tries to edit files not in valid_files, remove them
+            # If the assistant tries to edit files not in valid_files, remove them
             if "files_to_edit" in parsed_response and parsed_response["files_to_edit"]:
                 new_files_to_edit = []
                 for edit in parsed_response["files_to_edit"]:
@@ -323,7 +328,7 @@ def stream_openai_response(user_message: str):
 
             response_obj = AssistantResponse(**parsed_response)
 
-            # Save the assistant's textual reply to conversation
+            # Save the assistant's textual reply to the conversation history
             conversation_history.append({
                 "role": "assistant",
                 "content": response_obj.assistant_reply
@@ -331,13 +336,14 @@ def stream_openai_response(user_message: str):
 
             return response_obj
 
-        except json.JSONDecodeError:
-            error_msg = "Failed to parse JSON response from assistant"
+        except json.JSONDecodeError as e:
+            error_msg = f"Failed to parse JSON response: {e}"
             console.print(f"[red]✗[/red] {error_msg}", style="red")
             return AssistantResponse(
-                assistant_reply=error_msg,
+                assistant_reply="Failed to parse JSON response",
                 files_to_create=[]
             )
+        # End of JSON parsing and error handling
 
     except Exception as e:
         error_msg = f"DeepSeek API error: {str(e)}"

@@ -33,7 +33,6 @@ class FileToCreate(BaseModel):
     path: str
     content: str
 
-# NEW: Diff editing structure
 class FileToEdit(BaseModel):
     path: str
     original_snippet: str
@@ -42,11 +41,10 @@ class FileToEdit(BaseModel):
 class AssistantResponse(BaseModel):
     assistant_reply: str
     files_to_create: Optional[List[FileToCreate]] = None
-    # NEW: optionally hold diff edits
     files_to_edit: Optional[List[FileToEdit]] = None
 
 # --------------------------------------------------------------------------------
-# 3. system prompt
+# 3. System prompt
 # --------------------------------------------------------------------------------
 system_PROMPT = dedent("""\
     You are an elite software engineer called DeepSeek Engineer with decades of experience across all programming domains.
@@ -132,15 +130,15 @@ def create_file(path: str, content: str):
         "content": f"✓ Created/updated file at '{file_path}'"
     })
     
-    # NEW: Add the actual content to conversation context
+    # Add the actual content to conversation context
     normalized_path = normalize_path(str(file_path))
     conversation_history.append({
         "role": "system",
         "content": f"Content of file '{normalized_path}':\n\n{content}"
     })
 
-# NEW: Show the user a table of proposed edits and confirm
 def show_diff_table(files_to_edit: List[FileToEdit]) -> None:
+    """Show the user a table of proposed edits and confirm."""
     if not files_to_edit:
         return
     
@@ -155,7 +153,6 @@ def show_diff_table(files_to_edit: List[FileToEdit]) -> None:
     
     console.print(table)
 
-# NEW: Apply diff edits
 def apply_diff_edit(path: str, original_snippet: str, new_snippet: str):
     """Reads the file at 'path', replaces the first occurrence of 'original_snippet' with 'new_snippet', then overwrites."""
     try:
@@ -169,7 +166,6 @@ def apply_diff_edit(path: str, original_snippet: str, new_snippet: str):
                 "content": f"✓ Applied diff edit to '{path}'"
             })
         else:
-            # NEW: Add debug info about the mismatch
             console.print(f"[yellow]⚠[/yellow] Original snippet not found in '[cyan]{path}[/cyan]'. No changes made.", style="yellow")
             console.print("\nExpected snippet:", style="yellow")
             console.print(Panel(original_snippet, title="Expected", border_style="yellow"))
@@ -254,8 +250,6 @@ def stream_openai_response(user_message: str):
     Streams the DeepSeek chat completion response and handles structured output.
     Returns the final AssistantResponse.
     """
-    # ... (existing file handling code remains the same)
-
     try:
         stream = client.chat.completions.create(
             model="deepseek-chat",
@@ -297,9 +291,7 @@ def stream_openai_response(user_message: str):
 
         try:
             parsed_response = json.loads(full_content)
-            
-            # ... (rest of existing parsing code remains the same)
-
+            return AssistantResponse(**parsed_response)
         except json.JSONDecodeError as e:
             error_msg = f"Failed to parse JSON response: {e}"
             console.print(f"[red]✗[/red] {error_msg}", style="red")
